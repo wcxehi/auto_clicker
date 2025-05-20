@@ -1,0 +1,149 @@
+(function superClickerV2() {
+  const style = document.createElement('style');
+  style.textContent = `
+    #clicker-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 12px;
+      border-radius: 12px;
+      font-family: sans-serif;
+      font-size: 14px;
+      width: 200px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    }
+    #clicker-panel.collapsed {
+      width: 90px;
+      height: 60px;
+      overflow: hidden;
+      padding: 6px;
+      cursor: pointer;
+    }
+    #clicker-panel button,
+    #clicker-panel input[type="checkbox"] {
+      margin-top: 5px;
+    }
+    #clicker-panel input[type="range"] {
+      width: 100%;
+    }
+    #clicker-panel label {
+      display: block;
+      margin-top: 4px;
+    }
+    #clicker-toggle {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  `;
+  document.head.appendChild(style);
+
+  const panel = document.createElement('div');
+  panel.id = 'clicker-panel';
+  panel.innerHTML = `
+    <div id="clicker-toggle">⏬</div>
+    <div><strong>🚀 老大點擊器 V2</strong></div>
+    <button id="startClicking">開始</button>
+    <button id="stopClicking">停止</button>
+    <label>速度：<span id="speedLabel">100</span>ms</label>
+    <input type="range" id="speedRange" min="10" max="1000" value="100">
+    <label><input type="checkbox" id="useKey" checked> 模擬空白鍵</label>
+    <label><input type="checkbox" id="useClick" checked> 模擬滑鼠點擊</label>
+    <label><input type="checkbox" id="useRandom" checked> 隨機點擊偏移</label>
+    <div style="margin-top:4px; font-size:12px;">按 Q 快捷開/關</div>
+  `;
+  document.body.appendChild(panel);
+
+  let isClicking = false;
+  let intervalId = null;
+
+  function simulateClick() {
+    const useKey = document.getElementById('useKey').checked;
+    const useClick = document.getElementById('useClick').checked;
+    const useRandom = document.getElementById('useRandom').checked;
+
+    if (useKey) {
+      const event = new KeyboardEvent('keydown', {
+        key: ' ',
+        code: 'Space',
+        keyCode: 32,
+        which: 32,
+        bubbles: true,
+        cancelable: true
+      });
+      document.dispatchEvent(event);
+
+      // optional keyup
+      const upEvent = new KeyboardEvent('keyup', {
+        key: ' ',
+        code: 'Space',
+        keyCode: 32,
+        which: 32,
+        bubbles: true,
+        cancelable: true
+      });
+      document.dispatchEvent(upEvent);
+    }
+
+    if (useClick) {
+      let x = window.innerWidth / 2;
+      let y = window.innerHeight / 2;
+
+      if (useRandom) {
+        x += (Math.random() - 0.5) * 100;
+        y += (Math.random() - 0.5) * 100;
+      }
+
+      const el = document.elementFromPoint(x, y);
+      if (el) {
+        const mouseEvent = new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        el.dispatchEvent(mouseEvent);
+      }
+    }
+  }
+
+  function startClicking() {
+    if (intervalId) return;
+    const delay = parseInt(document.getElementById('speedRange').value);
+    intervalId = setInterval(simulateClick, delay);
+    isClicking = true;
+  }
+
+  function stopClicking() {
+    clearInterval(intervalId);
+    intervalId = null;
+    isClicking = false;
+  }
+
+  document.getElementById('startClicking').onclick = startClicking;
+  document.getElementById('stopClicking').onclick = stopClicking;
+  document.getElementById('speedRange').oninput = (e) => {
+    document.getElementById('speedLabel').innerText = e.target.value;
+    if (isClicking) {
+      stopClicking();
+      startClicking();
+    }
+  };
+
+  document.getElementById('clicker-toggle').onclick = () => {
+    panel.classList.toggle('collapsed');
+    document.getElementById('clicker-toggle').textContent = panel.classList.contains('collapsed') ? '⏫' : '⏬';
+  };
+
+  // 快捷鍵 Q 切換
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'q') {
+      if (isClicking) stopClicking();
+      else startClicking();
+    }
+  });
+})();
