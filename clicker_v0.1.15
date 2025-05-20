@@ -1,0 +1,171 @@
+(function autoClickerWithTarget() {
+  const style = document.createElement('style');
+  style.textContent = `
+    #clicker-ui, #clicker-target {
+      z-index: 9999;
+      position: fixed;
+    }
+    #clicker-ui {
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 10px;
+      border-radius: 12px;
+      width: 220px;
+      font-family: sans-serif;
+      font-size: 14px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    }
+    #clicker-ui input, #clicker-ui select {
+      width: 100%;
+      margin-top: 4px;
+    }
+    #clicker-ui button {
+      margin-top: 6px;
+      width: 49%;
+      padding: 5px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #4CAF50;
+      color: white;
+    }
+    #clicker-ui button.stop {
+      background: #f44336;
+    }
+    #clicker-ui label {
+      display: block;
+      margin-top: 6px;
+    }
+    #clicker-toggle {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #clicker-target {
+      width: 20px;
+      height: 20px;
+      background: red;
+      border-radius: 50%;
+      cursor: move;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  `;
+  document.head.appendChild(style);
+
+  // 建立控制面板
+  const ui = document.createElement('div');
+  ui.id = 'clicker-ui';
+  ui.innerHTML = `
+    <div id="clicker-toggle">⏬</div>
+    <strong>🚀 老大點擊器</strong><br>
+    <button id="startBtn">開始</button>
+    <button id="stopBtn" class="stop">停止</button>
+    <label>點擊速度 (<span id="speedVal">100</span>ms)</label>
+    <input type="range" min="10" max="1000" value="100" id="speedRange">
+    <label>鍵盤鍵：</label>
+    <select id="keySelect">
+      <option value=" ">Space</option>
+      ${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(k => `<option value="${k}">${k}</option>`).join('')}
+    </select>
+    <label><input type="checkbox" id="useClick" checked> 模擬滑鼠</label>
+    <label><input type="checkbox" id="autoCenter"> 自動點擊畫面中央</label>
+    <div style="font-size:12px;">快捷鍵 Q 啟/停</div>
+  `;
+  document.body.appendChild(ui);
+
+  // 建立紅點
+  const target = document.createElement('div');
+  target.id = 'clicker-target';
+  document.body.appendChild(target);
+
+  // 拖曳紅點
+  let offsetX, offsetY, isDragging = false;
+  target.addEventListener('mousedown', e => {
+    isDragging = true;
+    offsetX = e.offsetX;
+    offsetY = e.offsetY;
+  });
+  document.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    target.style.left = (e.clientX - offsetX) + 'px';
+    target.style.top = (e.clientY - offsetY) + 'px';
+  });
+  document.addEventListener('mouseup', () => isDragging = false);
+
+  // 控制變數
+  let interval = null;
+  let isRunning = false;
+
+  function getClickCoords() {
+    if (document.getElementById('autoCenter').checked) {
+      return [window.innerWidth / 2, window.innerHeight / 2];
+    } else {
+      const rect = target.getBoundingClientRect();
+      return [rect.left + 10, rect.top + 10];
+    }
+  }
+
+  function simulateClick() {
+    const key = document.getElementById('keySelect').value;
+    const useClick = document.getElementById('useClick').checked;
+
+    if (key) {
+      const evtDown = new KeyboardEvent('keydown', { key, code: key, bubbles: true });
+      const evtUp = new KeyboardEvent('keyup', { key, code: key, bubbles: true });
+      document.dispatchEvent(evtDown);
+      document.dispatchEvent(evtUp);
+    }
+
+    if (useClick) {
+      const [x, y] = getClickCoords();
+      const el = document.elementFromPoint(x, y);
+      if (el) {
+        const click = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+        el.dispatchEvent(click);
+      }
+    }
+  }
+
+  function startClicking() {
+    if (interval) return;
+    const delay = parseInt(document.getElementById('speedRange').value);
+    interval = setInterval(simulateClick, delay);
+    isRunning = true;
+  }
+
+  function stopClicking() {
+    clearInterval(interval);
+    interval = null;
+    isRunning = false;
+  }
+
+  // 綁定 UI
+  document.getElementById('startBtn').onclick = startClicking;
+  document.getElementById('stopBtn').onclick = stopClicking;
+  document.getElementById('speedRange').oninput = (e) => {
+    document.getElementById('speedVal').innerText = e.target.value;
+    if (isRunning) {
+      stopClicking();
+      startClicking();
+    }
+  };
+
+  // 熱鍵 Q
+  document.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'q') {
+      isRunning ? stopClicking() : startClicking();
+    }
+  });
+
+  // 收合控制器
+  document.getElementById('clicker-toggle').onclick = () => {
+    ui.classList.toggle('collapsed');
+    document.getElementById('clicker-toggle').textContent = ui.classList.contains('collapsed') ? '⏫' : '⏬';
+  };
+})();
